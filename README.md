@@ -1,7 +1,8 @@
 # Trend Analyzer
 An automation tool used for analyze Google Search trend assiciate with the website.
+The scriptis written in VScode Python Interactive Window with special comment #%% indicating executable code blocks, similar with Juypter Notebook.
 
-## Current Feature
+## Current Features
 * Retrive data of given date range from Google Search Console API
 * Identify similar keywords using fuzzy match
 * Filter keywords with top performance (clicks, impressions) and calculate slope using linear regression
