@@ -93,6 +93,8 @@ df = pd.merge(df, similar, how='left', on='modified_query')
 # record time
 timer3 = perf_counter()
 print(f"Total running time: {timer3 - timer1} Seconds")
+
+df.to_csv('prepared.csv')
 df
 
 # option 2: count words frequency
@@ -110,8 +112,10 @@ total_count = total_count.groupby('aggregated_query').sum().reset_index()
 
 # pick fixed number of rows
 # TODO: switch to dynamic picking
-top_clicks = total_count.nlargest(100, ['clicks'])
-top_impressions = total_count.nlargest(100, ['impressions'])
+top_clicks = total_count.nlargest(
+    int(round(len(total_count) * 0.2)), ['clicks'])
+top_impressions = total_count.nlargest(
+    int(round(len(total_count) * 0.2)), ['impressions'])
 
 # test df
 #hc_hi = pd.merge(top_clicks, top_impressions, how='inner', on=['modified_query'])[['modified_query', 'clicks_x', 'impressions_x']].rename(columns={'clicks_x': 'clicks', 'impressions_x': 'impressions'})
@@ -133,6 +137,16 @@ total_count.loc[total_count['aggregated_query'].isin(
 
 category_df = total_count.dropna(subset=['category'])
 category_df
+
+#%%
+#TODO:
+# split keywords, drop duplicated, and get Google Trends
+
+
+
+
+
+
 
 # --------------LEFT PATH END---------------
 
@@ -212,6 +226,51 @@ for index, row in slope.iterrows():
         slope.loc[index, 'trend'] = 'sideways trend' # including clicks or impressions p value > required value
 
 slope
+
+"""
+CTR version instead of clicks
+# CTR and impressions both uptrend = uptrend
+# mixed = sideways
+# both downtrend = downtrend
+
+# CTR linear regression
+ctr = pd.DataFrame(
+    columns=['aggregated_query', 'slope', 'intercept', 'r_value', 'p_value', 'std_err'])
+for query in slope_df['aggregated_query'].unique():
+    df_query = slope_df[slope_df['aggregated_query'] == query]
+    slope, intercept, r_value, p_value, std_err = stats.linregress(
+        df_query['date'], df_query['CTR'])
+    ctr = ctr.append({"aggregated_query": query, "slope": slope, "intercept": intercept,
+                                      "r_value": r_value, "p_value": p_value, "std_err": std_err}, ignore_index=True)
+ctr = ctr[ctr['p_value'] < 0.1]
+ctr.sort_values(
+    'slope', ascending=False, inplace=True)
+
+# impressions linear regression
+impressions = pd.DataFrame(
+    columns=['aggregated_query', 'slope', 'intercept', 'r_value', 'p_value', 'std_err'])
+for query in slope_df['aggregated_query'].unique():
+    df_query = slope_df[slope_df['aggregated_query'] == query]
+    slope, intercept, r_value, p_value, std_err = stats.linregress(
+        df_query['date'], df_query['impressions'])
+    impressions = impressions.append({"aggregated_query": query, "slope": slope, "intercept": intercept,
+                                                "r_value": r_value, "p_value": p_value, "std_err": std_err}, ignore_index=True)
+impressions = impressions[impressions['p_value'] < 0.1]
+impressions.sort_values(
+    'slope', ascending=False, inplace=True)
+
+# merge and identify trend
+slope = pd.merge(ctr, impressions, how='outer', on='aggregated_query')
+for index, row in slope.iterrows():
+    if row['slope_x'] > 0 and row['slope_y'] > 0:
+        slope.loc[index, 'trend'] = 'uptrend'
+    elif row['slope_x'] < 0 and row['slope_y'] < 0:
+        slope.loc[index, 'trend'] = 'downtrend'
+    else:
+        slope.loc[index, 'trend'] = 'sideways trend' # including clicks or impressions p value > required value
+
+slope
+"""
 
 #%%
 # TODO: Google Trends cross-reference
